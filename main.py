@@ -78,9 +78,15 @@ def create_realistic_matches(text: str) -> List[Dict[str, Any]]:
         start_pos = text_lower.find(pattern)
         if start_pos != -1:
             # Extract the actual text around the match
-            original_start = max(0, start_pos - 10)
-            original_end = min(len(text), start_pos + len(pattern) + 40)
-            original_text = text[original_start:original_end].strip()
+            # Get more context around the match
+            context_start = max(0, start_pos - 5)
+            context_end = min(len(text), start_pos + len(pattern) + 45)
+            original_text = text[context_start:context_end].strip()
+            
+            # If original text is too short, extend it
+            if len(original_text) < 30:
+                context_end = min(len(text), start_pos + 60)
+                original_text = text[context_start:context_end].strip()
             
             matches.append({
                 "originalText": original_text,
@@ -109,11 +115,18 @@ def simulate_plagiarism_check(text: str, filename: str) -> Dict[str, Any]:
     # Create matches based on actual text content
     matches = create_realistic_matches(text)
     
-    # Calculate overall similarity based on matches
+    # 🔥 FIX: Calculate overall similarity properly
     if matches:
-        # Weight similarity by match quality and length
-        total_similarity = sum(match["similarity"] for match in matches)
-        overall_similarity = min(total_similarity / len(matches) / 100, 0.95)  # Convert to 0-1 scale
+        # Calculate based on text coverage and match quality
+        total_matched_chars = sum(len(match["originalText"]) for match in matches)
+        text_coverage = min(total_matched_chars / len(text), 1.0)  # Max 100%
+        
+        # Average similarity of matches weighted by coverage
+        avg_similarity = sum(match["similarity"] for match in matches) / len(matches)
+        
+        # Combine coverage and similarity (scale to 0-1)
+        overall_similarity = (text_coverage * 0.6 + (avg_similarity / 100) * 0.4)
+        overall_similarity = min(overall_similarity, 0.95)  # Cap at 95%
     else:
         overall_similarity = 0.0
     
@@ -139,7 +152,7 @@ def simulate_plagiarism_check(text: str, filename: str) -> Dict[str, Any]:
         "status": "completed",
         "analyzedAt": datetime.now().isoformat(),
         "filename": filename,
-        "original_text": text,  # 🔥 KEY FIX: Return the FULL original text
+        "original_text": text,  # Return the FULL original text
         "word_count": len(text.split()),
         "character_count": len(text),
         "matches": matches,
