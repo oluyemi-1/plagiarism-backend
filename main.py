@@ -40,18 +40,18 @@ def extract_text_from_file(file_path: str, filename: str) -> str:
                 text = ""
                 for page in pdf_reader.pages:
                     text += page.extract_text() + "\n"
-                return text
+                return text.strip()
         
         elif file_extension == '.docx':
             doc = Document(file_path)
             text = ""
             for paragraph in doc.paragraphs:
                 text += paragraph.text + "\n"
-            return text
+            return text.strip()
         
         elif file_extension == '.txt':
             with open(file_path, 'r', encoding='utf-8') as file:
-                return file.read()
+                return file.read().strip()
         
         else:
             raise ValueError(f"Unsupported file type: {file_extension}")
@@ -59,91 +59,91 @@ def extract_text_from_file(file_path: str, filename: str) -> str:
     except Exception as e:
         raise Exception(f"Error extracting text: {str(e)}")
 
-def simulate_plagiarism_check(text: str, filename: str) -> Dict[str, Any]:
-    """
-    Simulate plagiarism detection logic
-    In production, this would connect to real plagiarism detection APIs
-    """
-    
-    # Simulate different similarity levels based on content
+def create_realistic_matches(text: str) -> List[Dict[str, Any]]:
+    """Create realistic matches with proper positioning"""
+    matches = []
     text_lower = text.lower()
     
-    # Simulate high similarity for certain patterns
-    if any(phrase in text_lower for phrase in ["artificial intelligence", "machine learning", "climate change"]):
-        similarity = 68.7
-        risk_level = "HIGH"
-        matches = [
-            {
-                "id": str(uuid.uuid4()),
-                "text": "artificial intelligence and machine learning have...",
-                "similarity": 95.0,
-                "source": "academic-journal-2023.pdf",
-                "url": "https://example.com/source1"
-            },
-            {
-                "id": str(uuid.uuid4()),
-                "text": "machine learning enables computers to learn from e...",
-                "similarity": 95.0,
-                "source": "research-paper-ai.docx",
-                "url": "https://example.com/source2"
-            }
-        ]
-    elif any(phrase in text_lower for phrase in ["lorem ipsum", "sample text", "test document"]):
-        similarity = 50.8
-        risk_level = "HIGH"
-        matches = [
-            {
-                "id": str(uuid.uuid4()),
-                "text": "lorem ipsum dolor sit amet consectetur...",
-                "similarity": 85.0,
-                "source": "template-document.txt",
-                "url": "https://example.com/source3"
-            }
-        ]
-    elif len(text) < 100:
-        similarity = 0.0
-        risk_level = "LOW"
-        matches = []
-    else:
-        # Random similarity for other content
-        import random
-        similarity = random.uniform(15.0, 45.0)
-        risk_level = "MEDIUM" if similarity > 30 else "LOW"
-        matches = [
-            {
-                "id": str(uuid.uuid4()),
-                "text": text[:50] + "...",
-                "similarity": similarity + 10,
-                "source": "online-source.html",
-                "url": "https://example.com/source4"
-            }
-        ] if similarity > 25 else []
-    
-    sources = [
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Academic Research Database",
-            "url": "https://academic-db.example.com",
-            "type": "academic"
-        },
-        {
-            "id": str(uuid.uuid4()),
-            "title": "Web Content Scanner",
-            "url": "https://web-scanner.example.com",
-            "type": "web"
-        }
+    # Look for common academic phrases and create matches
+    patterns = [
+        ("artificial intelligence", "Artificial intelligence and machine learning have revolutionized", 95.0),
+        ("machine learning", "Machine learning enables computers to learn from experience", 88.0),
+        ("climate change", "Climate change represents one of the most pressing challenges", 92.0),
+        ("data analysis", "Data analysis techniques are essential for modern research", 85.0),
+        ("research methodology", "Research methodology forms the backbone of academic studies", 90.0),
+        ("literature review", "Literature review provides comprehensive overview of existing work", 87.0),
     ]
     
+    for pattern, matched_text, similarity in patterns:
+        start_pos = text_lower.find(pattern)
+        if start_pos != -1:
+            # Extract the actual text around the match
+            original_start = max(0, start_pos - 10)
+            original_end = min(len(text), start_pos + len(pattern) + 40)
+            original_text = text[original_start:original_end].strip()
+            
+            matches.append({
+                "originalText": original_text,
+                "matchedText": matched_text,
+                "similarity": similarity,
+                "startIndex": start_pos,
+                "endIndex": start_pos + len(pattern),
+                "source": {
+                    "id": f"src_{len(matches) + 1:03d}",
+                    "title": f"Academic Research on {pattern.title()}",
+                    "url": f"https://example-university.edu/{pattern.replace(' ', '-')}",
+                    "author": f"Dr. {['Smith', 'Johnson', 'Williams', 'Brown'][len(matches) % 4]}",
+                    "domain": "example-university.edu",
+                    "type": "academic"
+                },
+                "type": "exact" if similarity > 90 else "paraphrased"
+            })
+    
+    return matches
+
+def simulate_plagiarism_check(text: str, filename: str) -> Dict[str, Any]:
+    """
+    Simulate plagiarism detection logic with realistic matches
+    """
+    
+    # Create matches based on actual text content
+    matches = create_realistic_matches(text)
+    
+    # Calculate overall similarity based on matches
+    if matches:
+        # Weight similarity by match quality and length
+        total_similarity = sum(match["similarity"] for match in matches)
+        overall_similarity = min(total_similarity / len(matches) / 100, 0.95)  # Convert to 0-1 scale
+    else:
+        overall_similarity = 0.0
+    
+    # Determine risk level
+    if overall_similarity < 0.10:
+        risk_level = "Low"
+    elif overall_similarity < 0.25:
+        risk_level = "Medium"
+    else:
+        risk_level = "High"
+    
+    # Create source references
+    sources = []
+    for match in matches:
+        source = match["source"]
+        if not any(s["id"] == source["id"] for s in sources):
+            sources.append(source)
+    
     return {
-        "document_id": str(uuid.uuid4()),
-        "overall_similarity": round(similarity, 1),
-        "risk_level": risk_level,
-        "matches": matches,
-        "sources": sources,
-        "analyzed_at": datetime.now().isoformat(),
-        "original_text": text[:500] + "..." if len(text) > 500 else text,
+        "documentId": str(uuid.uuid4()),
+        "overallSimilarity": overall_similarity,
+        "riskLevel": risk_level,
+        "status": "completed",
+        "analyzedAt": datetime.now().isoformat(),
+        "filename": filename,
+        "original_text": text,  # 🔥 KEY FIX: Return the FULL original text
         "word_count": len(text.split()),
-        "character_count": len(text)
+        "character_count": len(text),
+        "matches": matches,
+        "sources": sources
     }
 
 async def analyze_document(file_path: str, filename: str) -> Dict[str, Any]:
@@ -226,6 +226,7 @@ async def analyze_document_endpoint(file: UploadFile = File(...)):
             
             return JSONResponse(content={
                 "success": True,
+                "message": "Document analyzed successfully",
                 "data": result
             })
             
